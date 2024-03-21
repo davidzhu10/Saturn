@@ -1,3 +1,5 @@
+import json
+import pprint
 from forge.actions import ActionRegister
 from forge.sdk import (
     Agent,
@@ -10,8 +12,12 @@ from forge.sdk import (
     Workspace,
 )
 
-LOG = ForgeLogger(__name__)
+from .sdk import (
+    PromptEngine, 
+    chat_completion_request
+)
 
+LOG = ForgeLogger(__name__)
 
 class ForgeAgent(Agent):
     """
@@ -119,28 +125,86 @@ class ForgeAgent(Agent):
         multiple steps. Returning a request to continue in the step output, the user can then decide
         if they want the agent to continue or not.
         """
-        # An example that
+        
+        task = await self.db.get_task(task_id)
+        
         step = await self.db.create_step(
             task_id=task_id, input=step_request, is_last=True
         )
+        
+        prompt_engine = PromptEngine("gpt-3.5-turbo")
+        
+        system_prompt = prompt_engine.load_prompt("system-format")
+        
+        # LOG.info(",\n".join(self.abilities.list_abilities_for_prompt()))
 
-        self.workspace.write(task_id=task_id, path="output.txt", data=b"Washington D.C")
+        # Define the task parameters
+        task_kwargs = {
+            "task": task.input,
+            "abilities": self.abilities.list_abilities_for_prompt(),
+        }
 
-        await self.db.create_artifact(
-            task_id=task_id,
-            step_id=step.step_id,
-            file_name="output.txt",
-            relative_path="",
-            agent_created=True,
+        # Load the task prompt with the defined task parameters
+        task_prompt = prompt_engine.load_prompt("task-step", **task_kwargs)
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": task_prompt}
+        ]
+        
+        try:
+            # Define the parameters for the chat completion request
+            chat_completion_kwargs = {
+                "messages": messages,
+                "model": "gpt-3.5-turbo",
+            }
+            # Make the chat completion request and parse the response
+            chat_response = await chat_completion_request(**chat_completion_kwargs)
+            answer = json.loads(chat_response["choices"][0]["message"]["content"])
+
+            # Log the answer for debugging purposes
+            LOG.info(pprint.pformat(answer))
+
+        except json.JSONDecodeError as e:
+            # Handle JSON decoding errors
+            LOG.error(f"Unable to decode chat response: {chat_response}")
+        except Exception as e:
+            # Handle other exceptions
+            LOG.error(f"Unable to generate chat response: {e}")
+
+        # Extract the ability from the answer
+        ability = answer["ability"]
+
+        # Run the ability and get the output
+        # We don't actually use the output in this example
+        output = await self.abilities.run_action(
+            task_id, ability["name"], **ability["args"]
         )
+        LOG.info(f"output is: {output}")
 
-        step.output = "Washington D.C"
+        # Set the step output to the "speak" part of the answer
+        step.output = answer["thoughts"]["speak"]
 
-        LOG.info(
-            f"\t✅ Final Step completed: {step.step_id}. \n"
-            + f"Output should be placeholder text Washington D.C. You'll need to \n"
-            + f"modify execute_step to include LLM behavior. Follow the tutorial "
-            + f"if confused. "
-        )
-
+        # Return the completed step
         return step
+
+        # self.workspace.write(task_id=task_id, path="output.txt", data=b"Washington D.C")
+
+        # await self.db.create_artifact(
+        #     task_id=task_id,
+        #     step_id=step.step_id,
+        #     file_name="output.txt",
+        #     relative_path="",
+        #     agent_created=True,
+        # )
+
+        # step.output = "Washington D.C"
+
+        # LOG.info(
+        #     f"\t✅ Final Step completed: {step.step_id}. \n"
+        #     + f"Output should be placeholder text Washington D.C. You'll need to \n"
+        #     + f"modify execute_step to include LLM behavior. Follow the tutorial "
+        #     + f"if confused. "
+        # )
+
+        # return step
