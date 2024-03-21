@@ -132,7 +132,7 @@ class ForgeAgent(Agent):
             task_id=task_id, input=step_request, is_last=True
         )
         
-        prompt_engine = PromptEngine("gpt-3.5-turbo")
+        prompt_engine = PromptEngine("gpt-4")
         
         system_prompt = prompt_engine.load_prompt("system-format")
         
@@ -156,6 +156,7 @@ class ForgeAgent(Agent):
             # Define the parameters for the chat completion request
             chat_completion_kwargs = {
                 "messages": messages,
+                # "model": "gpt-4",
                 "model": "gpt-3.5-turbo",
             }
             # Make the chat completion request and parse the response
