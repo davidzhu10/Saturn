@@ -1,4 +1,3 @@
-from typing import List
 import subprocess
 import webbrowser
 import time
@@ -29,46 +28,31 @@ async def write_jupyter_notebook(agent, task_id: str, file_path: str, code: str)
     """
     Write code to a jupyter notebook
     """
-    
-    subprocess.run("pwd")
-    subprocess.run("ls")
-    subprocess.run(["ls","agbenchmark_config"])
-    print(task_id)
 
-    print(code)
+    # reformat \\n into \n
     code = code.replace("\\n", "\n")
-    print(code)
 
     nb = nbf.v4.new_notebook()
     code_cell = nbf.v4.new_code_cell(source=code)
     nb.cells = [code_cell]
     
     notebook_to_write = nbf.writes(nb)
-    print(notebook_to_write)
 
+    # create the jupyter notebook and write the contents
     agent.workspace.write(task_id=task_id, path=file_path, data=notebook_to_write.encode())
     
-    file_name = "agbenchmark_config/workspace/" + task_id
-    subprocess.run(["ls", file_name])
-    full_path = file_name + "/" + file_path
-    # subprocess.run(["open", full_path])
+    file_path_prefix = "agbenchmark_config/workspace/" + task_id
+    full_path = file_path_prefix + "/" + file_path
+    
+    # execute the "jupyter notebook" command
     subprocess.Popen(["jupyter", "notebook"])
     
-    # counter = 0
-    # while True:
-    #   stdout = process.stdout.read().decode()
-    #   if "is running at" in stdout:
-    #     break
-    #   time.sleep(0.5)
-    #   counter += 1
-    #   if counter > 10:
-    #     print("waited too long")
-    #     break
-    
+    # hacky, sleep for 5 seconds to allow time for the jupyter notebook command to execute
     time.sleep(5)
     
     url = "http://localhost:8888/notebooks/" + full_path
-    print(url)
+
+    # open the actual .ipynb notebook itself
     webbrowser.open_new_tab(url)
     
     return await agent.db.create_artifact(

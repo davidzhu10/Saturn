@@ -136,7 +136,7 @@ class ForgeAgent(Agent):
         
         system_prompt = prompt_engine.load_prompt("system-format")
         
-        # LOG.info(",\n".join(self.abilities.list_abilities_for_prompt()))
+        LOG.info(",\n".join(self.abilities.list_abilities_for_prompt()))
 
         # Define the task parameters
         task_kwargs = {
@@ -156,8 +156,7 @@ class ForgeAgent(Agent):
             # Define the parameters for the chat completion request
             chat_completion_kwargs = {
                 "messages": messages,
-                # "model": "gpt-4",
-                "model": "gpt-3.5-turbo",
+                "model": "gpt-4",
             }
             # Make the chat completion request and parse the response
             chat_response = await chat_completion_request(**chat_completion_kwargs)
@@ -188,24 +187,3 @@ class ForgeAgent(Agent):
 
         # Return the completed step
         return step
-
-        # self.workspace.write(task_id=task_id, path="output.txt", data=b"Washington D.C")
-
-        # await self.db.create_artifact(
-        #     task_id=task_id,
-        #     step_id=step.step_id,
-        #     file_name="output.txt",
-        #     relative_path="",
-        #     agent_created=True,
-        # )
-
-        # step.output = "Washington D.C"
-
-        # LOG.info(
-        #     f"\t✅ Final Step completed: {step.step_id}. \n"
-        #     + f"Output should be placeholder text Washington D.C. You'll need to \n"
-        #     + f"modify execute_step to include LLM behavior. Follow the tutorial "
-        #     + f"if confused. "
-        # )
-
-        # return step
